@@ -1,79 +1,378 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>E_P 视觉 | AR名片</title>
-<script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-<style>
-body { margin: 0; overflow: hidden; }
-#video-container {
-position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-background: rgba(0,0,0,0.9); display: none;
-justify-content: center; align-items: center; z-index: 9999;
-}
-#video-container.active { display: flex; }
-#video-player { max-width: 90%; max-height: 90%; }
-#close-video {
-position: absolute; top: 20px; right: 20px;
-width: 50px; height: 50px; background: rgba(255,255,255,0.2);
-border: none; border-radius: 50%; color: white;
-font-size: 24px; cursor: pointer; z-index: 10000;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>E_P 视觉 | AR名片</title>
+  
+  <!-- A-Frame -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  
+  <!-- MindAR -->
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+      overflow: hidden;
+      background: #0a0a0a;
+    }
+    
+    #video-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.95);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    #video-container.active {
+      display: flex;
+      opacity: 1;
+    }
+    #video-player {
+      width: 100%;
+      height: 100%;
+      max-width: 1920px;
+      max-height: 1080px;
+      object-fit: contain;
+    }
+    #close-video {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 10000;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #close-video:hover {
+      background: rgba(255,255,255,0.25);
+      transform: scale(1.1);
+    }
+    
+    #play-hint {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, rgba(0,0,0,0.85), rgba(20,20,20,0.9));
+      color: white;
+      padding: 14px 28px;
+      border-radius: 30px;
+      font-size: 15px;
+      display: none;
+      z-index: 100;
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      letter-spacing: 0.5px;
+    }
+    #play-hint::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #FF6B35;
+      border-radius: 50%;
+      margin-right: 10px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.2); }
+    }
+    
+    #scan-hint {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: white;
+      z-index: 50;
+      pointer-events: none;
+    }
+    #scan-hint .scan-icon {
+      width: 120px;
+      height: 120px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      margin: 0 auto 20px;
+      position: relative;
+      animation: scan-pulse 2s ease-in-out infinite;
+    }
+    #scan-hint .scan-icon::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      border: 2px solid #FF6B35;
+      border-radius: 10px;
+    }
+    @keyframes scan-pulse {
+      0%, 100% { border-color: rgba(255,255,255,0.3); }
+      50% { border-color: rgba(255,107,53,0.6); }
+    }
+    #scan-hint p {
+      font-size: 16px;
+      opacity: 0.8;
+      letter-spacing: 1px;
+    }
+    #scan-hint.hidden { display: none; }
+  </style>
 </head>
 <body>
-<div id="video-container">
-<button id="close-video" onclick="closeVideo()">×</button>
-<video id="video-player" controls poster="poster.jpg">
-<source src="video.mp4" type="video/mp4">
-</video>
-</div>
+  <!-- 扫描提示 -->
+  <div id="scan-hint">
+    <div class="scan-icon"></div>
+    <p>将摄像头对准名片</p>
+  </div>
 
-<a-scene mindar-image="imageTargetSrc: ./targets.mind;"
-color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
-vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-<a-assets>
-<img id="card" src="card.jpg" />
-<img id="poster" src="poster.jpg" />
-</a-assets>
-<a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-<a-entity mindar-image-target="targetIndex: 0">
-<a-plane src="#card" position="0 0 0" height="0.552" width="1" opacity="0.9"></a-plane>
-<a-entity id="play-btn" position="0 -0.35 0.05" class="clickable">
-<a-plane color="#FF6B35" height="0.12" width="0.5"></a-plane>
-<a-triangle color="white" scale="0.03 0.03 0.03" position="-0.08 0 0.01" rotation="0 0 -90"></a-triangle>
-<a-text value="观看裸眼3D案例" position="0.05 0 0.01" align="center" color="white" scale="0.15 0.15 0.15"></a-text>
-</a-entity>
-<a-text value="E_P 视觉\n裸眼3D展陈" position="0 0.4 0.1" align="center" color="#FF6B35" scale="0.25 0.25 0.25"></a-text>
-<a-plane src="#poster" position="0 0.05 0.05" height="0.25" width="0.44" class="clickable" id="video-preview"></a-plane>
-<a-circle color="rgba(0,0,0,0.5)" position="0 0.05 0.06" radius="0.06" class="clickable" id="play-overlay">
-<a-triangle color="white" scale="0.04 0.04 0.04" position="0.01 0 0.01" rotation="0 0 -90"></a-triangle>
-</a-circle>
-</a-entity>
-</a-scene>
+  <!-- 视频播放容器 -->
+  <div id="video-container">
+    <button id="close-video">✕</button>
+    <video id="video-player" controls playsinline>
+      <source src="video.mp4" type="video/mp4">
+      您的浏览器不支持视频播放
+    </video>
+  </div>
 
-<script>
-function playVideo() {
-const container = document.getElementById('video-container');
-const player = document.getElementById('video-player');
-container.classList.add('active'); player.play();
-}
-function closeVideo() {
-const container = document.getElementById('video-container');
-const player = document.getElementById('video-player');
-player.pause(); container.classList.remove('active');
-}
-document.addEventListener('DOMContentLoaded', () => {
-['play-btn', 'video-preview', 'play-overlay'].forEach(id => {
-const el = document.getElementById(id);
-if (el) el.addEventListener('click', playVideo);
-});
-});
-document.getElementById('video-container').addEventListener('click', (e) => {
-if (e.target.id === 'video-container') closeVideo();
-});
-</script>
+  <!-- 提示信息 -->
+  <div id="play-hint">扫描名片 · 观看裸眼3D案例</div>
+
+  <a-scene 
+    mindar-image="imageTargetSrc: ./targets.mind; maxTrack: 1"
+    color-space="sRGB" 
+    renderer="colorManagement: true, physicallyCorrectLights; antialias: true"
+    vr-mode-ui="enabled: false" 
+    device-orientation-permission-ui="enabled: false">
+    
+    <!-- 资源预加载 -->
+    <a-assets>
+      <img id="card" src="card.jpg" />
+      <img id="poster" src="poster.jpg" />
+    </a-assets>
+    
+    <!-- 相机 + 光标 -->
+    <a-camera position="0 0 0" look-controls="enabled: false">
+      <a-cursor 
+        color="#FF6B35"
+        fuse="false"
+        raycaster="objects: .clickable"
+        animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150">
+      </a-cursor>
+    </a-camera>
+    
+    <!-- AR 内容 -->
+    <a-entity id="ar-content" mindar-image-target="targetIndex: 0" visible="false">
+      <!-- 名片底板 -->
+      <a-plane 
+        src="#card" 
+        position="0 0 0" 
+        height="0.552" 
+        width="1"
+        opacity="0.95">
+      </a-plane>
+      
+      <!-- 悬浮标题容器 -->
+      <a-entity position="0 0.38 0.1">
+        <!-- 标题背景光晕 -->
+        <a-plane 
+          color="#FF6B35" 
+          opacity="0.15" 
+          height="0.12" 
+          width="0.9"
+          position="0 0 -0.01">
+        </a-plane>
+        <!-- 主标题 -->
+        <a-text 
+          value="E_P 视觉 裸眼3D展陈" 
+          position="0 0 0"
+          align="center"
+          color="#FF6B35"
+          font="https://cdn.aframe.io/fonts/Exo2Bold.fnt"
+          scale="0.28 0.28 0.28"
+          anchor="center"
+          baseline="center">
+        </a-text>
+      </a-entity>
+      
+      <!-- 视频预览缩略图 -->
+      <a-entity position="0 0.08 0.05">
+        <!-- 预览边框 -->
+        <a-plane 
+          color="#FF6B35" 
+          opacity="0.1" 
+          height="0.28" 
+          width="0.47"
+          position="0 0 -0.005">
+        </a-plane>
+        <!-- 预览图 -->
+        <a-plane 
+          src="#poster" 
+          height="0.25" 
+          width="0.44"
+          class="clickable"
+          id="video-preview">
+        </a-plane>
+        <!-- 播放图标覆盖 -->
+        <a-circle 
+          color="rgba(255,107,53,0.9)" 
+          position="0 0 0.01" 
+          radius="0.055"
+          class="clickable" 
+          id="play-overlay">
+          <a-triangle 
+            color="white" 
+            scale="0.045 0.045 0.045" 
+            position="0.012 0 0.01" 
+            rotation="0 0 -90">
+          </a-triangle>
+        </a-circle>
+      </a-entity>
+      
+      <!-- 播放按钮 -->
+      <a-entity id="play-btn" position="0 -0.32 0.05" class="clickable">
+        <!-- 按钮光晕 -->
+        <a-plane 
+          color="#FF6B35" 
+          opacity="0.3" 
+          height="0.14" 
+          width="0.52"
+          position="0 0 -0.005">
+        </a-plane>
+        <!-- 按钮背景 -->
+        <a-plane color="#FF6B35" height="0.1" width="0.5" radius="0.02"></a-plane>
+        <!-- 播放图标 -->
+        <a-triangle 
+          color="white" 
+          scale="0.035 0.035 0.035" 
+          position="-0.1 0 0.01" 
+          rotation="0 0 -90">
+        </a-triangle>
+        <!-- 文字 -->
+        <a-text 
+          value="观看裸眼3D案例" 
+          position="0.03 0 0.01" 
+          align="center" 
+          color="white" 
+          scale="0.14 0.14 0.14"
+          anchor="center"
+          baseline="center">
+        </a-text>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <script>
+    const container = document.getElementById('video-container');
+    const player = document.getElementById('video-player');
+    const closeBtn = document.getElementById('close-video');
+    const hint = document.getElementById('play-hint');
+    const scanHint = document.getElementById('scan-hint');
+    const arContent = document.getElementById('ar-content');
+    
+    // 播放视频
+    function playVideo() {
+      container.classList.add('active');
+      player.play().catch(() => {
+        console.log('Autoplay blocked');
+      });
+    }
+    
+    // 关闭视频
+    function closeVideo() {
+      player.pause();
+      player.currentTime = 0;
+      container.classList.remove('active');
+    }
+    
+    // 点击关闭按钮
+    closeBtn.addEventListener('click', closeVideo);
+    
+    // 点击容器外部关闭
+    container.addEventListener('click', (e) => {
+      if (e.target === container) {
+        closeVideo();
+      }
+    });
+    
+    // ESC 关闭视频
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && container.classList.contains('active')) {
+        closeVideo();
+      }
+    });
+    
+    // 绑定点击事件到 AR 元素
+    function bindClickEvents() {
+      const playBtn = document.getElementById('play-btn');
+      const videoPreview = document.getElementById('video-preview');
+      const playOverlay = document.getElementById('play-overlay');
+      
+      [playBtn, videoPreview, playOverlay].forEach(el => {
+        if (el) {
+          el.addEventListener('click', playVideo);
+          el.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            playVideo();
+          });
+        }
+      });
+    }
+    
+    // AR 场景加载完成
+    document.querySelector('a-scene').addEventListener('loaded', () => {
+      console.log('AR Scene loaded');
+    });
+    
+    // 检测到名片
+    document.querySelector('a-scene').addEventListener('targetFound', (e) => {
+      console.log('Target found:', e.target.id);
+      scanHint.classList.add('hidden');
+      arContent.setAttribute('visible', 'true');
+      
+      // 显示提示
+      hint.style.display = 'block';
+      setTimeout(() => {
+        hint.style.display = 'none';
+      }, 4000);
+      
+      bindClickEvents();
+    });
+    
+    // 失去追踪
+    document.querySelector('a-scene').addEventListener('targetLost', (e) => {
+      console.log('Target lost:', e.target.id);
+    });
+    
+    // 初始提示显示
+    setTimeout(() => {
+      hint.style.display = 'block';
+      setTimeout(() => {
+        hint.style.display = 'none';
+      }, 5000);
+    }, 1500);
+  </script>
 </body>
 </html>
