@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E_P 视觉 | AR名片</title>
+<script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<style>
+body { margin: 0; overflow: hidden; }
+#video-container {
+position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+background: rgba(0,0,0,0.9); display: none;
+justify-content: center; align-items: center; z-index: 9999;
+}
+#video-container.active { display: flex; }
+#video-player { max-width: 90%; max-height: 90%; }
+#close-video {
+position: absolute; top: 20px; right: 20px;
+width: 50px; height: 50px; background: rgba(255,255,255,0.2);
+border: none; border-radius: 50%; color: white;
+font-size: 24px; cursor: pointer; z-index: 10000;
+}
+</style>
+</head>
+<body>
+<div id="video-container">
+<button id="close-video" onclick="closeVideo()">×</button>
+<video id="video-player" controls poster="poster.jpg">
+<source src="video.mp4" type="video/mp4">
+</video>
+</div>
+
+<a-scene mindar-image="imageTargetSrc: ./targets.mind;"
+color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
+vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+<a-assets>
+<img id="card" src="card.png" />
+<img id="poster" src="poster.jpg" />
+</a-assets>
+<a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+<a-entity mindar-image-target="targetIndex: 0">
+<a-plane src="#card" position="0 0 0" height="0.552" width="1" opacity="0.9"></a-plane>
+<a-entity id="play-btn" position="0 -0.35 0.05" class="clickable">
+<a-plane color="#FF6B35" height="0.12" width="0.5"></a-plane>
+<a-triangle color="white" scale="0.03 0.03 0.03" position="-0.08 0 0.01" rotation="0 0 -90"></a-triangle>
+<a-text value="观看裸眼3D案例" position="0.05 0 0.01" align="center" color="white" scale="0.15 0.15 0.15"></a-text>
+</a-entity>
+<a-text value="E_P 视觉\n裸眼3D展陈" position="0 0.4 0.1" align="center" color="#FF6B35" scale="0.25 0.25 0.25"></a-text>
+<a-plane src="#poster" position="0 0.05 0.05" height="0.25" width="0.44" class="clickable" id="video-preview"></a-plane>
+<a-circle color="rgba(0,0,0,0.5)" position="0 0.05 0.06" radius="0.06" class="clickable" id="play-overlay">
+<a-triangle color="white" scale="0.04 0.04 0.04" position="0.01 0 0.01" rotation="0 0 -90"></a-triangle>
+</a-circle>
+</a-entity>
+</a-scene>
+
+<script>
+function playVideo() {
+const container = document.getElementById('video-container');
+const player = document.getElementById('video-player');
+container.classList.add('active'); player.play();
+}
+function closeVideo() {
+const container = document.getElementById('video-container');
+const player = document.getElementById('video-player');
+player.pause(); container.classList.remove('active');
+}
+document.addEventListener('DOMContentLoaded', () => {
+['play-btn', 'video-preview', 'play-overlay'].forEach(id => {
+const el = document.getElementById(id);
+if (el) el.addEventListener('click', playVideo);
+});
+});
+document.getElementById('video-container').addEventListener('click', (e) => {
+if (e.target.id === 'video-container') closeVideo();
+});
+</script>
+</body>
+</html>
